@@ -441,10 +441,22 @@ def create_app() -> Flask:
     def bills_create():
         if request.method == "POST":
             try:
-                period_val = request.form.get("period_option")
-                if not period_val:
-                    raise ValueError("Periodo requerido")
-                period_start, period_end = _parse_period_value(period_val)
+                mode = (request.form.get("mode") or "fixed").strip()
+                period_start = None
+                period_end = None
+                if mode == "manual":
+                    ms = (request.form.get("manual_start") or "").strip()
+                    me = (request.form.get("manual_end") or "").strip()
+                    if not ms or not me:
+                        raise ValueError("Inicio y fin requeridos")
+                    # Parse as date-only at midnight
+                    period_start = datetime.fromisoformat(ms)
+                    period_end = datetime.fromisoformat(me)
+                else:
+                    period_val = request.form.get("period_option")
+                    if not period_val:
+                        raise ValueError("Periodo requerido")
+                    period_start, period_end = _parse_period_value(period_val)
                 amount_total = float(request.form.get("amount_total"))
             except Exception:
                 flash("Datos inválidos", "danger")
@@ -457,7 +469,8 @@ def create_app() -> Flask:
             flash("Recibo guardado", "success")
             return redirect(url_for("bills_list"))
         # GET: show readings for the selected period (?period=) or first period by default
-        selected_val = request.args.get("period") or (FIXED_BILL_PERIODS[0][0] if FIXED_BILL_PERIODS else None)
+        manual_mode = (request.args.get("mode") or "").strip().lower() == "manual"
+        selected_val = None if manual_mode else (request.args.get("period") or (FIXED_BILL_PERIODS[0][0] if FIXED_BILL_PERIODS else None))
         period_readings = []
         period_kwh_est = 0.0
         if selected_val:
@@ -483,6 +496,8 @@ def create_app() -> Flask:
             bill=None,
             bill_periods=FIXED_BILL_PERIODS,
             selected_period=selected_val,
+            manual_mode=manual_mode,
+            lock_period=(bool(selected_val) and not manual_mode),
             period_readings=period_readings,
             period_kwh_est=period_kwh_est,
         )

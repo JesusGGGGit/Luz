@@ -6,27 +6,44 @@
     {{ 'Editar recibo' if bill else 'Nuevo recibo' }}
   </div>
   <div class="card-body">
-    <form method="post">
+    <form method="post" id="bill-form" data-initial-period="{{ selected_period or '' }}">
       <div class="row g-3">
+        <div class="col-12">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="modeSwitch" name="mode" value="manual" {{ 'checked' if manual_mode else '' }}>
+<label class="form-check-label" for="modeSwitch" style="color: var(--muted);">
+  Capturar periodo manualmente
+</label>
+          </div>
+        </div>
         <div class="col-12 col-md-6">
           <label class="form-label">Periodo</label>
-          <select class="form-control" name="period_option" required>
+          <select class="form-control" name="period_option" data-lock-period="{{ '1' if lock_period else '0' }}" {{ 'disabled' if (manual_mode or lock_period) else '' }} {{ '' if (manual_mode or lock_period) else 'required' }}>
             <option value="" disabled {{ 'selected' if not selected_period }}>Selecciona un periodo</option>
             {% for val, label in bill_periods %}
               <option value="{{ val }}" {{ 'selected' if selected_period==val }}>{{ label }}</option>
             {% endfor %}
           </select>
         </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label">Inicio (manual)</label>
+          <input class="form-control" type="date" name="manual_start" {{ '' if manual_mode else 'disabled' }}>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label">Fin (manual)</label>
+          <input class="form-control" type="date" name="manual_end" {{ '' if manual_mode else 'disabled' }}>
+        </div>
         <div class="col-12 col-md-6">
           <label class="form-label">Monto total</label>
-          <input class="form-control" type="number" inputmode="decimal" step="0.01" name="amount_total" value="{{ bill.amount_total if bill else '' }}" required>
+          <input class="form-control" id="amount_total" type="number" inputmode="decimal" step="0.01" name="amount_total" value="{{ bill.amount_total if bill else '' }}" required>
+          <div class="form-text" id="price_per_kwh" aria-live="polite"></div>
         </div>
       </div>
       <div class="row g-3 mt-1">
         <div class="col-12 col-md-6">
-          <label class="form-label">kWh del periodo (estimado)</label>
-          <input class="form-control" type="number" step="0.01" name="period_kwh" value="{{ '%.2f'|format(period_kwh_est) if period_kwh_est is defined else '' }}" readonly>
-          <div class="form-text">Estimado: última lectura - primera lectura dentro del periodo.</div>
+          <label class="form-label">kWh del periodo</label>
+          <input class="form-control" id="period_kwh" type="number" step="0.01" name="period_kwh" value="{{ '%.2f'|format(period_kwh_est) if period_kwh_est is defined else '' }}">
+          <div class="form-text">Se precarga con un estimado (última - primera). Puedes ajustarlo.</div>
         </div>
       </div>
       <div class="mt-3">
@@ -72,15 +89,40 @@
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     const sel = document.querySelector('select[name="period_option"]');
-    const kwhInput = document.querySelector('input[name="period_kwh"]');
+    const kwhInput = document.getElementById('period_kwh');
+    const amountInput = document.getElementById('amount_total');
+    const ppEl = document.getElementById('price_per_kwh');
     const tableBody = document.querySelector('#period-readings-body');
+    const modeSwitch = document.getElementById('modeSwitch');
+    const manualStart = document.querySelector('input[name="manual_start"]');
+    const manualEnd = document.querySelector('input[name="manual_end"]');
+    function toggleMode(manual){
+      if (!sel || !manualStart || !manualEnd) return;
+  const LOCK_PERIOD = (sel?.dataset.lockPeriod === '1');
+  sel.disabled = !!manual || LOCK_PERIOD;
+      manualStart.disabled = !manual;
+      manualEnd.disabled = !manual;
+      if (!manual && sel.value) refreshPeriod(sel.value);
+    }
+    function updatePricePerKwh(){
+      if (!ppEl) return;
+      const a = parseFloat(amountInput?.value || '');
+      const k = parseFloat(kwhInput?.value || '');
+      if (isFinite(a) && isFinite(k) && k > 0) {
+        const p = a / k;
+        ppEl.textContent = `Costo aprox: $${p.toFixed(4)} por kWh`;
+      } else {
+        ppEl.textContent = '';
+      }
+    }
     async function refreshPeriod(val) {
       if (!val) return;
       try {
         const res = await fetch(`{{ url_for('bill_period_info') }}?val=${encodeURIComponent(val)}`);
         const data = await res.json();
-        if (data.kwh_est !== undefined && kwhInput) {
+        if (data.kwh_est !== undefined && kwhInput && (!kwhInput.value || kwhInput.value === '0' || kwhInput.dataset.autofill === '1')) {
           kwhInput.value = (Math.round(data.kwh_est * 100) / 100).toFixed(2);
+          kwhInput.dataset.autofill = '1';
         }
         if (Array.isArray(data.readings) && tableBody) {
           tableBody.innerHTML = data.readings.map(r => `
@@ -91,12 +133,23 @@
             </tr>
           `).join('') || '<tr><td colspan="3" class="text-center">No hay lecturas dentro del periodo</td></tr>';
         }
+        updatePricePerKwh();
       } catch (e) { /* no-op */ }
     }
     if (sel) {
       sel.addEventListener('change', (e) => refreshPeriod(e.target.value));
-      refreshPeriod(sel.value);
+      const initial = document.getElementById('bill-form')?.dataset.initialPeriod;
+      if (initial) {
+        refreshPeriod(initial);
+      } else if (!modeSwitch?.checked) {
+        refreshPeriod(sel.value);
+      }
     }
+    modeSwitch?.addEventListener('change', (e) => toggleMode(e.target.checked));
+    toggleMode(modeSwitch?.checked);
+    amountInput?.addEventListener('input', updatePricePerKwh);
+    kwhInput?.addEventListener('input', () => { kwhInput.dataset.autofill = '0'; updatePricePerKwh(); });
+    updatePricePerKwh();
   });
 </script>
 {% endblock %}

@@ -56,6 +56,37 @@ body {
 	border-radius: 12px;
 	min-height: 44px;
 }
+.form-select {
+	background: rgba(255,255,255,0.05);
+	border: 1px solid rgba(255,255,255,0.12);
+	color: var(--text);
+	border-radius: 12px;
+	min-height: 44px;
+}
+.form-control::placeholder { color: var(--muted); }
+/* Ensure selects and date inputs render dark and readable */
+select.form-control,
+input[type="date"].form-control,
+input[type="time"].form-control,
+input[type="number"].form-control {
+	background-color: rgba(255,255,255,0.05);
+	color: var(--text);
+	border-color: rgba(255,255,255,0.12);
+	color-scheme: dark;
+}
+/* Disabled controls should remain readable */
+.form-control:disabled,
+.form-select:disabled {
+	background-color: rgba(255,255,255,0.04);
+	color: var(--muted);
+	opacity: 1;
+}
+/* Make the calendar icon visible on dark backgrounds */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+	filter: invert(85%);
+	opacity: 0.9;
+}
 .form-label { color: var(--muted); font-weight: 600; }
 
 .list-group-item {

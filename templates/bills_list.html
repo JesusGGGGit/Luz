@@ -4,7 +4,8 @@
   <h3 class="m-0">Recibos</h3>
   <div class="d-flex gap-2">
     <a class="btn btn-outline-secondary" href="{{ url_for('bills_export_csv') }}"><i class="bi bi-download me-1"></i> CSV</a>
-    <a class="btn btn-primary" href="{{ url_for('bills_create') }}"><i class="bi bi-plus-lg me-1"></i> Nuevo</a>
+  <a class="btn btn-primary" href="{{ url_for('bills_create') }}"><i class="bi bi-plus-lg me-1"></i> Nuevo</a>
+  <a class="btn btn-outline-primary" href="{{ url_for('bills_create') }}?mode=manual"><i class="bi bi-calendar2-plus me-1"></i> Manual</a>
   </div>
 </div>
 <div class="card">
@@ -64,7 +65,7 @@
                 {% if g.bill_id %}
                   <a class="btn btn-sm btn-outline-primary" href="{{ url_for('bills_edit', bill_id=g.bill_id) }}"><i class="bi bi-pencil-square"></i> Editar</a>
                 {% else %}
-                  <a class="btn btn-sm btn-success" href="{{ url_for('bills_create') }}?period={{ g.val }}"><i class="bi bi-plus-lg"></i> Crear recibo</a>
+                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('bills_create') }}?period={{ g.val }}"><i class="bi bi-pencil-square"></i> Editar</a>
                 {% endif %}
               </div>
             </div>
@@ -76,9 +77,9 @@
               <div class="text-muted small">Lecturas del periodo</div>
               <div>
                 {% if g.bill_id %}
-                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('bills_edit', bill_id=g.bill_id) }}"><i class="bi bi-receipt"></i> Editar recibo</a>
+                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('bills_edit', bill_id=g.bill_id) }}"><i class="bi bi-receipt"></i> Editar</a>
                 {% else %}
-                  <a class="btn btn-sm btn-success" href="{{ url_for('bills_create') }}?period={{ g.val }}"><i class="bi bi-receipt"></i> Crear recibo</a>
+                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('bills_create') }}?period={{ g.val }}"><i class="bi bi-receipt"></i> Editar</a>
                 {% endif %}
               </div>
             </div>
