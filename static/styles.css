@@ -177,3 +177,49 @@ canvas { max-width: 100%; }
 @media (min-width: 992px) {
 	.bottom-nav { display: none; }
 }
+
+/* Accordion styles */
+.accordion-item {
+	background: rgba(255,255,255,0.02) !important;
+	border: 1px solid rgba(255,255,255,0.08) !important;
+	border-radius: var(--radius) !important;
+	margin-bottom: 8px;
+	overflow: hidden;
+}
+
+.accordion-button {
+	background: rgba(255,255,255,0.03) !important;
+	color: var(--text) !important;
+	border: none !important;
+	border-radius: var(--radius) !important;
+	padding: 1rem 1.25rem;
+	font-weight: 500;
+	transition: all 0.2s ease;
+}
+
+.accordion-button:not(.collapsed) {
+	background: rgba(76, 141, 246, 0.1) !important;
+	color: var(--text) !important;
+	box-shadow: none !important;
+}
+
+.accordion-button:focus {
+	box-shadow: 0 0 0 2px rgba(76, 141, 246, 0.3) !important;
+	border-color: var(--primary) !important;
+}
+
+.accordion-button::after {
+	filter: invert(1) brightness(0.8);
+	transition: transform 0.2s ease;
+}
+
+.accordion-body {
+	background: rgba(255,255,255,0.01);
+	border-top: 1px solid rgba(255,255,255,0.05);
+	color: var(--text);
+	padding: 1rem 1.25rem;
+}
+
+.accordion-collapse {
+	border: none !important;
+}

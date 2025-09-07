@@ -39,8 +39,13 @@
         </div>
         <div class="col-12 col-md-6">
           <label class="form-label">Monto total</label>
-          <input class="form-control" id="amount_total" type="number" inputmode="decimal" step="0.01" name="amount_total" value="{{ bill.amount_total if bill else '' }}" required>
-          <div class="form-text" id="price_per_kwh" aria-live="polite"></div>
+          <div class="input-group">
+            <input class="form-control" id="amount_total" type="number" inputmode="decimal" step="0.01" name="amount_total" value="{{ bill.amount_total if bill else '' }}" required>
+            <button class="btn btn-outline-secondary" type="button" id="calc_amount" title="Calcular monto basado en kWh">
+              <i class="bi bi-calculator"></i>
+            </button>
+          </div>
+          <div class="form-text" id="price_per_kwh" aria-live="polite"  style="color: var(--muted);"></div>
         </div>
       </div>
       <div class="row g-3 mt-1">
@@ -96,6 +101,7 @@
     const kwhInput = document.getElementById('period_kwh');
     const amountInput = document.getElementById('amount_total');
     const ppEl = document.getElementById('price_per_kwh');
+    const calcBtn = document.getElementById('calc_amount');
     const tableBody = document.querySelector('#period-readings-body');
     const modeSwitch = document.getElementById('modeSwitch');
     const manualStart = document.querySelector('input[name="manual_start"]');
@@ -111,13 +117,61 @@
       manualEnd.required = !!manual;
       if (!manual && sel.value && !LOCK_PERIOD) refreshPeriod(sel.value);
     }
+    function calculateTieredCost(kwh) {
+      if (kwh <= 0) return 0;
+      
+      let cost = 0;
+      let remaining = kwh;
+      
+      // Primeros 300 kWh a $0.816 cada uno
+      if (remaining > 0) {
+        const tier1 = Math.min(remaining, 300);
+        cost += tier1 * 0.816;
+        remaining -= tier1;
+      }
+      
+      // Siguientes 300 kWh (301-600) a $0.944 cada uno
+      if (remaining > 0) {
+        const tier2 = Math.min(remaining, 300);
+        cost += tier2 * 0.944;
+        remaining -= tier2;
+      }
+      
+      // Siguientes 300 kWh (601-900) a $1.219 cada uno
+      if (remaining > 0) {
+        const tier3 = Math.min(remaining, 300);
+        cost += tier3 * 1.219;
+        remaining -= tier3;
+      }
+      
+      // Resto (901+) a $3.248 cada uno
+      if (remaining > 0) {
+        cost += remaining * 3.248;
+      }
+      
+      return cost;
+    }
+    
     function updatePricePerKwh(){
       if (!ppEl) return;
       const a = parseFloat(amountInput?.value || '');
       const k = parseFloat(kwhInput?.value || '');
-      if (isFinite(a) && isFinite(k) && k > 0) {
-        const p = a / k;
-        ppEl.textContent = `Costo aprox: $${p.toFixed(4)} por kWh`;
+      
+      if (isFinite(k) && k > 0) {
+        const baseCost = calculateTieredCost(k);
+        const estimatedCost = baseCost * 1.16; // Agregar 16% de IVA
+        const avgPrice = estimatedCost / k;
+        
+        if (isFinite(a) && a > 0) {
+          const actualPrice = a / k;
+          ppEl.innerHTML = `
+            <div>Costo estimado: $${estimatedCost.toFixed(2)}
+          `;
+        } else {
+          ppEl.innerHTML = `
+            <div>Costo estimado: $${estimatedCost.toFixed(2)}
+          `;
+        }
       } else {
         ppEl.textContent = '';
       }
@@ -152,10 +206,24 @@
         refreshPeriod(sel.value);
       }
     }
+    
+    function calculateAmount() {
+      const k = parseFloat(kwhInput?.value || '');
+      if (isFinite(k) && k > 0) {
+        const baseCost = calculateTieredCost(k);
+        const estimatedCost = baseCost * 1.16; // Agregar 16% de IVA
+        if (amountInput) {
+          amountInput.value = estimatedCost.toFixed(2);
+          updatePricePerKwh();
+        }
+      }
+    }
+    
     modeSwitch?.addEventListener('change', (e) => toggleMode(e.target.checked));
     toggleMode(modeSwitch?.checked);
     amountInput?.addEventListener('input', updatePricePerKwh);
     kwhInput?.addEventListener('input', () => { kwhInput.dataset.autofill = '0'; updatePricePerKwh(); });
+    calcBtn?.addEventListener('click', calculateAmount);
     updatePricePerKwh();
   });
 </script>
