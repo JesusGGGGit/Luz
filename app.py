@@ -441,9 +441,11 @@ def create_app() -> Flask:
     def bills_create():
         if request.method == "POST":
             try:
-                mode = (request.form.get("mode") or "fixed").strip()
+                # If checkbox is checked, mode value will be "manual", otherwise it won't be present
+                mode = "manual" if request.form.get("mode") == "manual" else "fixed"
                 period_start = None
                 period_end = None
+                
                 if mode == "manual":
                     ms = (request.form.get("manual_start") or "").strip()
                     me = (request.form.get("manual_end") or "").strip()
@@ -457,7 +459,16 @@ def create_app() -> Flask:
                     if not period_val:
                         raise ValueError("Periodo requerido")
                     period_start, period_end = _parse_period_value(period_val)
-                amount_total = float(request.form.get("amount_total"))
+                
+                # Validate amount_total separately
+                amount_str = (request.form.get("amount_total") or "").strip()
+                if not amount_str:
+                    raise ValueError("Monto total requerido")
+                amount_total = float(amount_str)
+                
+            except ValueError as e:
+                flash(f"Datos inválidos: {str(e)}", "danger")
+                return redirect(url_for("bills_create"))
             except Exception:
                 flash("Datos inválidos", "danger")
                 return redirect(url_for("bills_create"))
@@ -470,7 +481,8 @@ def create_app() -> Flask:
             return redirect(url_for("bills_list"))
         # GET: show readings for the selected period (?period=) or first period by default
         manual_mode = (request.args.get("mode") or "").strip().lower() == "manual"
-        selected_val = None if manual_mode else (request.args.get("period") or (FIXED_BILL_PERIODS[0][0] if FIXED_BILL_PERIODS else None))
+        period_from_url = request.args.get("period")  # Only lock if period comes from URL
+        selected_val = None if manual_mode else (period_from_url or (FIXED_BILL_PERIODS[0][0] if FIXED_BILL_PERIODS else None))
         period_readings = []
         period_kwh_est = 0.0
         if selected_val:
@@ -497,7 +509,7 @@ def create_app() -> Flask:
             bill_periods=FIXED_BILL_PERIODS,
             selected_period=selected_val,
             manual_mode=manual_mode,
-            lock_period=(bool(selected_val) and not manual_mode),
+            lock_period=(bool(period_from_url) and not manual_mode),  # Only lock if period came from URL
             period_readings=period_readings,
             period_kwh_est=period_kwh_est,
         )
@@ -512,13 +524,33 @@ def create_app() -> Flask:
                 return redirect(url_for("bills_list"))
             if request.method == "POST":
                 try:
-                    period_val = request.form.get("period_option")
-                    if not period_val:
-                        raise ValueError("Periodo requerido")
-                    ps, pe = _parse_period_value(period_val)
-                    bill.period_start = ps
-                    bill.period_end = pe
-                    bill.amount_total = float(request.form.get("amount_total"))
+                    # Handle both manual and fixed mode in edit
+                    mode = "manual" if request.form.get("mode") == "manual" else "fixed"
+                    
+                    if mode == "manual":
+                        ms = (request.form.get("manual_start") or "").strip()
+                        me = (request.form.get("manual_end") or "").strip()
+                        if not ms or not me:
+                            raise ValueError("Inicio y fin requeridos")
+                        bill.period_start = datetime.fromisoformat(ms)
+                        bill.period_end = datetime.fromisoformat(me)
+                    else:
+                        period_val = request.form.get("period_option")
+                        if not period_val:
+                            raise ValueError("Periodo requerido")
+                        ps, pe = _parse_period_value(period_val)
+                        bill.period_start = ps
+                        bill.period_end = pe
+                    
+                    # Validate amount_total separately
+                    amount_str = (request.form.get("amount_total") or "").strip()
+                    if not amount_str:
+                        raise ValueError("Monto total requerido")
+                    bill.amount_total = float(amount_str)
+                    
+                except ValueError as e:
+                    flash(f"Datos inválidos: {str(e)}", "danger")
+                    return redirect(url_for("bills_edit", bill_id=bill_id))
                 except Exception:
                     flash("Datos inválidos", "danger")
                     return redirect(url_for("bills_edit", bill_id=bill_id))
@@ -528,14 +560,19 @@ def create_app() -> Flask:
                 return redirect(url_for("bills_list"))
         # Preselect matching period if exists
         selected_val = None
+        manual_mode = False
         try:
             ps = bill.period_start.date().isoformat()
             pe = bill.period_end.date().isoformat()
             candidate = f"{ps}|{pe}"
             if any(val == candidate for (val, _label) in FIXED_BILL_PERIODS):
                 selected_val = candidate
+            else:
+                # If it doesn't match any fixed period, treat as manual
+                manual_mode = True
         except Exception:
             selected_val = None
+            manual_mode = True
         # Gather readings inside the bill period for current user
         period_readings = []
         period_kwh_est = 0.0
@@ -563,6 +600,8 @@ def create_app() -> Flask:
             bill=bill,
             bill_periods=FIXED_BILL_PERIODS,
             selected_period=selected_val,
+            manual_mode=manual_mode,
+            lock_period=False,  # Allow changing mode when editing
             period_readings=period_readings,
             period_kwh_est=period_kwh_est,
         )

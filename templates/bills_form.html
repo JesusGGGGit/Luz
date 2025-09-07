@@ -24,14 +24,18 @@
               <option value="{{ val }}" {{ 'selected' if selected_period==val }}>{{ label }}</option>
             {% endfor %}
           </select>
+          {% if lock_period and selected_period %}
+          <!-- Hidden field to send period value when select is disabled -->
+          <input type="hidden" name="period_option" value="{{ selected_period }}">
+          {% endif %}
         </div>
         <div class="col-12 col-md-3">
           <label class="form-label">Inicio (manual)</label>
-          <input class="form-control" type="date" name="manual_start" {{ '' if manual_mode else 'disabled' }}>
+          <input class="form-control" type="date" name="manual_start" value="{{ bill.period_start.strftime('%Y-%m-%d') if (bill and manual_mode) else '' }}" {{ '' if manual_mode else 'disabled' }}>
         </div>
         <div class="col-12 col-md-3">
           <label class="form-label">Fin (manual)</label>
-          <input class="form-control" type="date" name="manual_end" {{ '' if manual_mode else 'disabled' }}>
+          <input class="form-control" type="date" name="manual_end" value="{{ bill.period_end.strftime('%Y-%m-%d') if (bill and manual_mode) else '' }}" {{ '' if manual_mode else 'disabled' }}>
         </div>
         <div class="col-12 col-md-6">
           <label class="form-label">Monto total</label>
@@ -43,7 +47,7 @@
         <div class="col-12 col-md-6">
           <label class="form-label">kWh del periodo</label>
           <input class="form-control" id="period_kwh" type="number" step="0.01" name="period_kwh" value="{{ '%.2f'|format(period_kwh_est) if period_kwh_est is defined else '' }}">
-          <div class="form-text">Se precarga con un estimado (última - primera). Puedes ajustarlo.</div>
+          <div class="form-text"  style="color: var(--muted);">Se precarga con un estimado (última - primera). Puedes ajustarlo.</div>
         </div>
       </div>
       <div class="mt-3">
@@ -98,11 +102,14 @@
     const manualEnd = document.querySelector('input[name="manual_end"]');
     function toggleMode(manual){
       if (!sel || !manualStart || !manualEnd) return;
-  const LOCK_PERIOD = (sel?.dataset.lockPeriod === '1');
-  sel.disabled = !!manual || LOCK_PERIOD;
+      const LOCK_PERIOD = (sel?.dataset.lockPeriod === '1');
+      sel.disabled = !!manual || LOCK_PERIOD;
+      sel.required = !manual && !LOCK_PERIOD;
       manualStart.disabled = !manual;
       manualEnd.disabled = !manual;
-      if (!manual && sel.value) refreshPeriod(sel.value);
+      manualStart.required = !!manual;
+      manualEnd.required = !!manual;
+      if (!manual && sel.value && !LOCK_PERIOD) refreshPeriod(sel.value);
     }
     function updatePricePerKwh(){
       if (!ppEl) return;
