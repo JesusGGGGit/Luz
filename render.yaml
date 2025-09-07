@@ -7,12 +7,12 @@ services:
     startCommand: gunicorn app:app --workers=2 --threads=4 --preload --timeout 120
     envVars:
       - key: DATABASE_URL
-        fromDatabase: luz-db
+        fromDatabase: luz_bd
         property: connectionString
       - key: SECRET_KEY
         generateValue: true
     autoDeploy: true
 
 databases:
-  - name: luz-db
+  - name: luz_bd
     plan: free
