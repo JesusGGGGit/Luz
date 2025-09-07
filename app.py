@@ -1,4 +1,5 @@
 import os
+import secrets
 from datetime import datetime
 from io import BytesIO
 
@@ -33,6 +34,22 @@ def create_app() -> Flask:
 
     engine = create_engine(get_database_url(), pool_pre_ping=True)
     Base.metadata.create_all(engine)
+    # Bootstrap admin user if none exists (useful for Render where CLI isn't available)
+    try:
+        with Session(engine) as db:
+            users_count = db.scalar(select(func.count()).select_from(User)) or 0
+            if users_count == 0:
+                username = os.getenv("ADMIN_USERNAME", "admin")
+                password = os.getenv("ADMIN_PASSWORD")
+                if not password:
+                    password = secrets.token_urlsafe(12)
+                    print(f"[Bootstrap] Creado usuario admin '{username}' con contraseña: {password}")
+                user = User(username=username, password_hash=generate_password_hash(password))
+                db.add(user)
+                db.commit()
+                print("[Bootstrap] Usuario admin creado.")
+    except Exception as e:
+        print(f"[Bootstrap] No se pudo crear usuario admin: {e}")
     SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 
     login_manager = LoginManager(app)

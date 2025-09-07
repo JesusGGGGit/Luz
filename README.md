@@ -45,6 +45,11 @@ Opción 1: Blueprint con `render.yaml` (recomendado)
    - Base de datos Postgres gratuita
    - Variables de entorno (SECRET_KEY autogenerada y DATABASE_URL desde la DB)
 3. Deploy. La app levantará con `gunicorn` y conectará a Postgres.
+    - En el primer arranque si no hay usuarios, se crea un admin automáticamente:
+       - Usuario: `ADMIN_USERNAME` (por defecto `admin`).
+       - Contraseña: si no defines `ADMIN_PASSWORD`, se genera y se imprime en los logs como:
+          `[Bootstrap] Creado usuario admin 'admin' con contraseña: ...`
+       - Puedes configurar ambos en las Environment Variables del servicio.
 
 Opción 2: Manual
 1. Crear servicio Web en Render (Python), plan free.
@@ -52,6 +57,7 @@ Opción 2: Manual
 3. Start Command: `gunicorn app:app --workers=2 --threads=4 --preload --timeout 120`
 4. Añadir Postgres addon y configurar `DATABASE_URL` automáticamente.
 5. Añadir `SECRET_KEY` en Environment.
+6. Opcional: define `ADMIN_USERNAME` y `ADMIN_PASSWORD` para crear un admin fijo en el primer arranque.
 
 ## Importar/Exportar
 - Lecturas: exporta CSV en /lecturas/exportar.csv e importa en /lecturas/importar (columnas: created_at ISO, kwh, description).
