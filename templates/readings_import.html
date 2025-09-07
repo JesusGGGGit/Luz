@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3>Importar lecturas desde CSV</h3>
+<p>Formato esperado: columnas <code>created_at</code> (ISO 8601), <code>kwh</code>, <code>description</code>.</p>
+<form method="post" enctype="multipart/form-data">
+  <div class="mb-3">
+    <input class="form-control" type="file" name="file" accept=".csv" required>
+  </div>
+  <button class="btn btn-primary" type="submit">Importar</button>
+  <a class="btn btn-secondary" href="{{ url_for('readings_list') }}">Cancelar</a>
+</form>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3>Recibos</h3>
+  <div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('bills_export_csv') }}">Exportar CSV</a>
+    <a class="btn btn-primary" href="{{ url_for('bills_create') }}">Nuevo recibo</a>
+  </div>
+</div>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Inicio</th>
+      <th>Fin</th>
+      <th>Monto</th>
+      <th>Notas</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for b in bills %}
+    <tr>
+      <td>{{ b.period_start.strftime('%Y-%m-%d') }}</td>
+      <td>{{ b.period_end.strftime('%Y-%m-%d') }}</td>
+      <td>${{ '%.2f'|format(b.amount_total) }}</td>
+      <td>{{ b.notes or '' }}</td>
+      <td class="text-end">
+        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('bills_edit', bill_id=b.id) }}">Editar</a>
+        <form method="post" action="{{ url_for('bills_delete', bill_id=b.id) }}" class="d-inline" onsubmit="return confirm('¿Eliminar?');">
+          <button class="btn btn-sm btn-outline-danger" type="submit">Eliminar</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="text-center">Sin recibos</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

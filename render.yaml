@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: luz-app
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers=2 --threads=4 --preload --timeout 120
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: luz-db
+        property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+    autoDeploy: true
+
+databases:
+  - name: luz-db
+    plan: free

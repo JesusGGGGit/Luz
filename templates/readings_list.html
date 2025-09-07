@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3>Lecturas</h3>
+  <div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('readings_export_csv') }}">Exportar CSV</a>
+    <a class="btn btn-primary" href="{{ url_for('readings_create') }}">Nueva lectura</a>
+  </div>
+</div>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>kWh</th>
+      <th>Descripción</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in readings %}
+    <tr>
+      <td>{{ r.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td>{{ r.kwh }}</td>
+      <td>{{ r.description or '' }}</td>
+      <td class="text-end">
+        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('readings_edit', reading_id=r.id) }}">Editar</a>
+        <form method="post" action="{{ url_for('readings_delete', reading_id=r.id) }}" class="d-inline" onsubmit="return confirm('¿Eliminar?');">
+          <button class="btn btn-sm btn-outline-danger" type="submit">Eliminar</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="text-center">Sin lecturas</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3>Estadísticas</h3>
+<div class="row">
+  <div class="col-12 col-lg-6 mb-4">
+    <div class="card">
+      <div class="card-header">kWh registrados</div>
+      <div class="card-body">
+        <canvas id="readingsChart" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6 mb-4">
+    <div class="card">
+      <div class="card-header">Facturación (recibos)</div>
+      <div class="card-body">
+        <canvas id="billsChart" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-header">Costo promedio por kWh por periodo</div>
+  <div class="card-body table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th>Periodo</th>
+          <th>kWh en periodo</th>
+          <th>Monto</th>
+          <th>Costo promedio por kWh</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in period_costs %}
+        <tr>
+          <td>{{ row.label }}</td>
+          <td>{{ '%.2f'|format(row.total_kwh) }}</td>
+          <td>${{ '%.2f'|format(row.amount) }}</td>
+          <td>
+            {% if row.avg_cost is not none %}
+              ${{ '%.4f'|format(row.avg_cost) }}
+            {% else %}
+              N/D
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script type="application/json" id="readings-data">{{ readings_data | tojson | safe }}</script>
+<script type="application/json" id="bills-data">{{ bills_data | tojson | safe }}</script>
+<script>
+  const readingsData = JSON.parse(document.getElementById('readings-data').textContent);
+  const billsData = JSON.parse(document.getElementById('bills-data').textContent);
+  new Chart(document.getElementById('readingsChart'), {
+    type: 'line',
+    data: {
+      labels: readingsData.labels,
+      datasets: [{
+        label: 'kWh',
+        data: readingsData.kwh,
+        borderColor: 'rgb(54, 162, 235)',
+        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+        tension: 0.2,
+        fill: true,
+      }]
+    }
+  });
+  new Chart(document.getElementById('billsChart'), {
+    type: 'bar',
+    data: {
+      labels: billsData.labels,
+      datasets: [{
+        label: 'Monto $',
+        data: billsData.amounts,
+        backgroundColor: 'rgba(255, 99, 132, 0.5)'
+      }]
+    },
+    options: {
+      scales: { x: { ticks: { autoSkip: true, maxRotation: 45, minRotation: 0 } } }
+    }
+  });
+</script>
+{% endblock %}
