@@ -1,12 +1,16 @@
 {% extends 'base.html' %}
 {% block content %}
-<h3>Importar lecturas desde CSV</h3>
-<p>Formato esperado: columnas <code>created_at</code> (ISO 8601), <code>kwh</code>, <code>description</code>.</p>
-<form method="post" enctype="multipart/form-data">
-  <div class="mb-3">
-    <input class="form-control" type="file" name="file" accept=".csv" required>
+<div class="card">
+  <div class="card-header d-flex align-items-center gap-2"><i class="bi bi-filetype-csv"></i> Importar lecturas desde CSV</div>
+  <div class="card-body">
+  <p class="mb-3">Formato esperado: columnas <code>created_at</code> (ISO 8601), <code>kwh</code>, <code>description</code>. Opcionalmente puedes incluir <code>period_start</code>, <code>period_end</code>, <code>period_label</code>, <code>period_year</code> (se recalculan al importar).</p>
+    <form method="post" enctype="multipart/form-data">
+      <div class="mb-3">
+        <input class="form-control" type="file" name="file" accept=".csv" required>
+      </div>
+      <button class="btn btn-primary" type="submit"><i class="bi bi-upload me-1"></i> Importar</button>
+      <a class="btn btn-secondary" href="{{ url_for('readings_list') }}">Cancelar</a>
+    </form>
   </div>
-  <button class="btn btn-primary" type="submit">Importar</button>
-  <a class="btn btn-secondary" href="{{ url_for('readings_list') }}">Cancelar</a>
-</form>
+</div>
 {% endblock %}

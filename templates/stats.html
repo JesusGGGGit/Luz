@@ -1,29 +1,29 @@
 {% extends 'base.html' %}
 {% block content %}
-<h3>Estadísticas</h3>
-<div class="row">
-  <div class="col-12 col-lg-6 mb-4">
+<h3 class="mb-3">Estadísticas</h3>
+<div class="row g-3">
+  <div class="col-12 col-lg-6">
     <div class="card">
-      <div class="card-header">kWh registrados</div>
+      <div class="card-header d-flex align-items-center gap-2"><i class="bi bi-lightning-charge"></i> kWh registrados</div>
       <div class="card-body">
-        <canvas id="readingsChart" height="120"></canvas>
+        <canvas id="readingsChart" height="140"></canvas>
       </div>
     </div>
   </div>
-  <div class="col-12 col-lg-6 mb-4">
+  <div class="col-12 col-lg-6">
     <div class="card">
-      <div class="card-header">Facturación (recibos)</div>
+      <div class="card-header d-flex align-items-center gap-2"><i class="bi bi-receipt"></i> Facturación (recibos)</div>
       <div class="card-body">
-        <canvas id="billsChart" height="120"></canvas>
+        <canvas id="billsChart" height="140"></canvas>
       </div>
     </div>
   </div>
 </div>
 
 <div class="card mt-3">
-  <div class="card-header">Costo promedio por kWh por periodo</div>
+  <div class="card-header d-flex align-items-center gap-2"><i class="bi bi-currency-dollar"></i> Costo promedio por kWh por periodo</div>
   <div class="card-body table-responsive">
-    <table class="table table-sm">
+    <table class="table table-sm align-middle">
       <thead>
         <tr>
           <th>Periodo</th>
@@ -35,10 +35,10 @@
       <tbody>
         {% for row in period_costs %}
         <tr>
-          <td>{{ row.label }}</td>
-          <td>{{ '%.2f'|format(row.total_kwh) }}</td>
-          <td>${{ '%.2f'|format(row.amount) }}</td>
-          <td>
+          <td data-label="Periodo">{{ row.label }}</td>
+          <td data-label="kWh en periodo">{{ '%.2f'|format(row.total_kwh) }}</td>
+          <td data-label="Monto">${{ '%.2f'|format(row.amount) }}</td>
+          <td data-label="Costo promedio por kWh">
             {% if row.avg_cost is not none %}
               ${{ '%.4f'|format(row.avg_cost) }}
             {% else %}
@@ -69,6 +69,11 @@
         tension: 0.2,
         fill: true,
       }]
+    },
+    options: {
+      maintainAspectRatio: false,
+      scales: { x: { ticks: { color: '#9db0cf' } }, y: { ticks: { color: '#9db0cf' } } },
+      plugins: { legend: { labels: { color: '#e8eef9' } } }
     }
   });
   new Chart(document.getElementById('billsChart'), {
@@ -82,7 +87,9 @@
       }]
     },
     options: {
-      scales: { x: { ticks: { autoSkip: true, maxRotation: 45, minRotation: 0 } } }
+      maintainAspectRatio: false,
+      scales: { x: { ticks: { autoSkip: true, maxRotation: 45, minRotation: 0, color: '#9db0cf' } }, y: { ticks: { color: '#9db0cf' } } },
+      plugins: { legend: { labels: { color: '#e8eef9' } } }
     }
   });
 </script>

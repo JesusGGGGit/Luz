@@ -1,4 +1,5 @@
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from typing import Optional
 
 from flask_login import UserMixin
@@ -16,7 +17,11 @@ class User(Base, UserMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    # Store naive datetime in local timezone (America/Monterrey)
+    def _now_mty_naive() -> datetime:
+        return datetime.now(ZoneInfo("America/Monterrey")).replace(tzinfo=None)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now_mty_naive)
 
     readings: Mapped[list["Reading"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
@@ -25,7 +30,7 @@ class Reading(Base):
     __tablename__ = "readings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=User._now_mty_naive, index=True)
     kwh: Mapped[float] = mapped_column(Float, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
 
@@ -42,6 +47,6 @@ class Bill(Base):
     amount_total: Mapped[float] = mapped_column(Float, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=User._now_mty_naive)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=True)
 

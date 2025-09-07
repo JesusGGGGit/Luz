@@ -1,39 +1,153 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h3>Recibos</h3>
-  <div>
-    <a class="btn btn-outline-secondary" href="{{ url_for('bills_export_csv') }}">Exportar CSV</a>
-    <a class="btn btn-primary" href="{{ url_for('bills_create') }}">Nuevo recibo</a>
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h3 class="m-0">Recibos</h3>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{{ url_for('bills_export_csv') }}"><i class="bi bi-download me-1"></i> CSV</a>
+    <a class="btn btn-primary" href="{{ url_for('bills_create') }}"><i class="bi bi-plus-lg me-1"></i> Nuevo</a>
   </div>
 </div>
-<table class="table table-striped">
-  <thead>
-    <tr>
-      <th>Inicio</th>
-      <th>Fin</th>
-      <th>Monto</th>
-      <th>Notas</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for b in bills %}
-    <tr>
-      <td>{{ b.period_start.strftime('%Y-%m-%d') }}</td>
-      <td>{{ b.period_end.strftime('%Y-%m-%d') }}</td>
-      <td>${{ '%.2f'|format(b.amount_total) }}</td>
-      <td>{{ b.notes or '' }}</td>
-      <td class="text-end">
-        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('bills_edit', bill_id=b.id) }}">Editar</a>
-        <form method="post" action="{{ url_for('bills_delete', bill_id=b.id) }}" class="d-inline" onsubmit="return confirm('¿Eliminar?');">
-          <button class="btn btn-sm btn-outline-danger" type="submit">Eliminar</button>
-        </form>
-      </td>
-    </tr>
-    {% else %}
-    <tr><td colspan="5" class="text-center">Sin recibos</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="card">
+  <div class="card-body table-responsive">
+    <table class="table table-striped align-middle">
+      <thead>
+        <tr>
+          <th>Inicio</th>
+          <th>Fin</th>
+          <th>Monto</th>
+          <th>Notas</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in bills %}
+        <tr>
+          <td data-label="Inicio">{{ b.period_start.strftime('%Y-%m-%d') }}</td>
+          <td data-label="Fin">{{ b.period_end.strftime('%Y-%m-%d') }}</td>
+          <td data-label="Monto">${{ '%.2f'|format(b.amount_total) }}</td>
+          <td data-label="Notas">{{ b.notes or '' }}</td>
+          <td class="text-end" data-label="Acciones">
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('bills_edit', bill_id=b.id) }}"><i class="bi bi-pencil-square"></i></a>
+            <form method="post" action="{{ url_for('bills_delete', bill_id=b.id) }}" class="d-inline" onsubmit="return confirm('¿Eliminar?');">
+              <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-center">Sin recibos</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% if grouped_periods %}
+<div class="card mb-4">
+  <div class="card-header d-flex align-items-center gap-2"><i class="bi bi-collection"></i> Periodos detectados por lecturas</div>
+  <div class="card-body p-2">
+    <div class="accordion" id="accordionPeriods">
+      {% for g in grouped_periods %}
+      <div class="accordion-item bg-transparent border-secondary-subtle">
+        <h2 class="accordion-header" id="heading-{{ loop.index }}">
+          <button class="accordion-button collapsed" type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#collapse-{{ loop.index }}"
+                  aria-expanded="false"
+                  aria-controls="collapse-{{ loop.index }}"
+                  data-period-val="{{ g.val }}">
+            <div class="w-100 d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <div>
+                <div class="fw-semibold">{{ g.year }} · {{ g.label }}</div>
+                <div class="text-muted small">{{ g.start.strftime('%d %b') }} - {{ g.end.strftime('%d %b') }} · {{ g.count }} lecturas</div>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge text-bg-dark border">kWh est: {{ '%.2f'|format(g.kwh_est) }}</span>
+                {% if g.bill_id %}
+                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('bills_edit', bill_id=g.bill_id) }}"><i class="bi bi-pencil-square"></i> Editar</a>
+                {% else %}
+                  <a class="btn btn-sm btn-success" href="{{ url_for('bills_create') }}?period={{ g.val }}"><i class="bi bi-plus-lg"></i> Crear recibo</a>
+                {% endif %}
+              </div>
+            </div>
+          </button>
+        </h2>
+        <div id="collapse-{{ loop.index }}" class="accordion-collapse collapse" aria-labelledby="heading-{{ loop.index }}" data-bs-parent="#accordionPeriods">
+          <div class="accordion-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="text-muted small">Lecturas del periodo</div>
+              <div>
+                {% if g.bill_id %}
+                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('bills_edit', bill_id=g.bill_id) }}"><i class="bi bi-receipt"></i> Editar recibo</a>
+                {% else %}
+                  <a class="btn btn-sm btn-success" href="{{ url_for('bills_create') }}?period={{ g.val }}"><i class="bi bi-receipt"></i> Crear recibo</a>
+                {% endif %}
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm table-striped align-middle mb-0 js-readings-table" data-period-val="{{ g.val }}">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>kWh</th>
+                    <th>Comentario</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="3" class="text-center text-muted">Abrir para cargar lecturas…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  (function(){
+    const accordion = document.getElementById('accordionPeriods');
+    if (!accordion) return;
+    accordion.addEventListener('show.bs.collapse', async (ev) => {
+      const collapseEl = ev.target; // .accordion-collapse
+      const table = collapseEl.querySelector('.js-readings-table');
+      if (!table || table.dataset.loaded === '1') return;
+      const val = table.dataset.periodVal;
+      try {
+  const url = "{{ url_for('bill_period_info') }}" + '?val=' + encodeURIComponent(val);
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const tbody = table.querySelector('tbody');
+        tbody.innerHTML = '';
+        if (!data.readings || data.readings.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Sin lecturas en este periodo</td></tr>';
+        } else {
+          for (const r of data.readings) {
+            // Try to format date nicely
+            let dtStr = r.created_at;
+            try {
+              const d = new Date(r.created_at);
+              if (!isNaN(d)) {
+                dtStr = d.toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+              }
+            } catch {}
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td data-label="Fecha">${dtStr}</td>
+                            <td data-label="kWh">${r.kwh}</td>
+                            <td data-label="Comentario">${r.description ?? ''}</td>`;
+            tbody.appendChild(tr);
+          }
+        }
+        table.dataset.loaded = '1';
+      } catch (e) {
+        const tbody = table.querySelector('tbody');
+        tbody.innerHTML = '<tr><td colspan="3" class="text-danger text-center">Error cargando lecturas</td></tr>';
+      }
+    });
+  })();
+</script>
 {% endblock %}

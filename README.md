@@ -4,14 +4,14 @@ Aplicación web en Flask para capturar lecturas de kWh, registrar recibos bimest
 
 ## Requisitos
 - Python 3.10+
-- Base de datos PostgreSQL
-- Variables de entorno: `DATABASE_URL`, `SECRET_KEY`
+- Para producción: Base de datos PostgreSQL y variables `DATABASE_URL`, `SECRET_KEY`.
+- Para local: no necesitas Postgres; si no hay `DATABASE_URL`, la app usa SQLite (`luz.db`).
 
-`DATABASE_URL` debe usar el esquema `postgresql://` o `postgres://` (la app lo adapta a `postgresql+psycopg2://`). Ejemplos:
+`DATABASE_URL` para Postgres puede usar `postgresql://` o `postgres://` (la app lo adapta a `postgresql+psycopg2://`). Ejemplos:
 - `postgresql://user:pass@localhost:5432/luz`
 - `postgres://user:pass@host:5432/db` (Render)
 
-## Correr en local
+## Correr en local (sin Postgres: SQLite automático)
 1. Crear y activar un entorno virtual (opcional):
    ```cmd
    python -m venv .venv
@@ -21,13 +21,12 @@ Aplicación web en Flask para capturar lecturas de kWh, registrar recibos bimest
    ```cmd
    pip install -r requirements.txt
    ```
-3. Exportar variables de entorno (Windows cmd):
+3. (Opcional) variables de entorno en local:
    ```cmd
    set SECRET_KEY=dev-secret
-   set DATABASE_URL=postgresql://postgres:postgres@localhost:5432/luz
    ```
-   Asegúrate de tener Postgres corriendo y la base `luz` creada.
-4. Inicializar tablas y crear usuario administrador:
+   Si no defines `DATABASE_URL`, la app creará/usará `luz.db` (SQLite) en el directorio del proyecto.
+4. Inicializar tablas (automático al arrancar) y crear usuario administrador:
    ```cmd
    flask --app app create-user
    ```
@@ -36,6 +35,11 @@ Aplicación web en Flask para capturar lecturas de kWh, registrar recibos bimest
    flask --app app run --port 5000
    ```
    Abrir http://localhost:5000
+
+Si prefieres usar Postgres en local, define `DATABASE_URL` antes de correr:
+```cmd
+set DATABASE_URL=postgresql://postgres:postgres@localhost:5432/luz
+```
 
 ## Despliegue en Render (plan gratuito)
 Opción 1: Blueprint con `render.yaml` (recomendado)
