@@ -201,11 +201,16 @@ def create_app() -> Flask:
     def readings_create():
         if request.method == "POST":
             try:
-                kwh = float(request.form.get("kwh", "0"))
-            except ValueError:
-                flash("kWh inválido", "danger")
+                kwh_str = request.form.get("kwh", "").strip()
+                if not kwh_str:
+                    raise ValueError("kWh es requerido")
+                kwh = float(kwh_str)
+                if kwh < 0:
+                    raise ValueError("kWh no puede ser negativo")
+            except ValueError as e:
+                flash(f"kWh inválido: {str(e)}", "danger")
                 return redirect(url_for("readings_create"))
-            description = request.form.get("description") or None
+            description = request.form.get("description", "").strip() or None
             # Require period fields
             period_val = request.form.get("period_option")
             period_year_raw = request.form.get("period_year")
@@ -225,8 +230,22 @@ def create_app() -> Flask:
             except Exception:
                 flash("Año inválido", "danger")
                 return redirect(url_for("readings_create"))
+            
+            # Calcular la fecha basada en el periodo seleccionado
+            try:
+                period_start, period_end = _parse_period_value(period_val)
+                # Usar una fecha dentro del periodo (por ejemplo, el punto medio)
+                import math
+                period_duration = (period_end - period_start).days
+                mid_point_days = math.floor(period_duration / 2)
+                target_date = period_start + timedelta(days=mid_point_days)
+                print(f"DEBUG - Setting reading date to {target_date} (mid-point of period)")
+            except Exception as e:
+                print(f"DEBUG - Error calculating period date: {e}, using current time")
+                target_date = _now_mty_naive()
+            
             with Session(engine) as db:
-                reading = Reading(kwh=kwh, description=description, user_id=current_user.id)
+                reading = Reading(kwh=kwh, description=description, user_id=current_user.id, created_at=target_date)
                 db.add(reading)
                 db.commit()
             flash("Lectura guardada", "success")
@@ -245,12 +264,52 @@ def create_app() -> Flask:
                 flash("Lectura no encontrada", "warning")
                 return redirect(url_for("readings_list"))
             if request.method == "POST":
+                # Debug: mostrar valores recibidos
+                print(f"DEBUG - Form data: {dict(request.form)}")
+                print(f"DEBUG - KWH raw: '{request.form.get('kwh', '')}'")
+                
                 try:
-                    reading.kwh = float(request.form.get("kwh", "0"))
-                except ValueError:
-                    flash("kWh inválido", "danger")
+                    kwh_str = request.form.get("kwh", "").strip()
+                    print(f"DEBUG - KWH cleaned: '{kwh_str}'")
+                    if not kwh_str:
+                        raise ValueError("kWh es requerido")
+                    new_kwh = float(kwh_str)
+                    if new_kwh < 0:
+                        raise ValueError("kWh no puede ser negativo")
+                    
+                    print(f"DEBUG - Updating reading.kwh from {reading.kwh} to {new_kwh}")
+                    reading.kwh = new_kwh
+                    
+                except ValueError as e:
+                    flash(f"kWh inválido: {str(e)}", "danger")
                     return redirect(url_for("readings_edit", reading_id=reading_id))
-                reading.description = request.form.get("description") or None
+                
+                # Procesar periodo y año para actualizar la fecha
+                period_val = request.form.get("period_option")
+                period_year_raw = request.form.get("period_year")
+                if period_val and period_year_raw:
+                    try:
+                        py = int(period_year_raw)
+                        # Validar que el periodo sea válido para el año
+                        valid_vals = {val for (val, _lbl) in build_periods_for_year(py)}
+                        if period_val in valid_vals:
+                            # Usar la fecha de inicio del periodo seleccionado
+                            period_start, period_end = _parse_period_value(period_val)
+                            # Actualizar la fecha de la lectura al inicio del periodo
+                            reading.created_at = period_start
+                            print(f"DEBUG - Updated reading.created_at to {period_start}")
+                        else:
+                            # Verificar año anterior por si es periodo dic-feb
+                            valid_prev = {val for (val, _lbl) in build_periods_for_year(py-1)}
+                            if period_val in valid_prev:
+                                period_start, period_end = _parse_period_value(period_val)
+                                reading.created_at = period_start
+                                print(f"DEBUG - Updated reading.created_at to {period_start} (previous year)")
+                    except Exception as e:
+                        print(f"DEBUG - Error updating period: {e}")
+                        # No fallar si hay error con el periodo, solo mantener fecha actual
+                
+                reading.description = request.form.get("description", "").strip() or None
                 db.commit()
                 flash("Lectura actualizada", "success")
                 return redirect(url_for("readings_list"))
@@ -637,9 +696,41 @@ def create_app() -> Flask:
     @app.route("/estadisticas")
     @login_required
     def stats():
+        def calculate_tiered_cost(kwh):
+            """Calculate CFE tiered cost with IVA"""
+            if kwh <= 0:
+                return 0
+            cost = 0
+            remaining = kwh
+            
+            # Primeros 300 kWh a $0.816 cada uno
+            if remaining > 0:
+                tier1 = min(remaining, 300)
+                cost += tier1 * 0.816
+                remaining -= tier1
+            
+            # Siguientes 300 kWh (301-600) a $0.944 cada uno
+            if remaining > 0:
+                tier2 = min(remaining, 300)
+                cost += tier2 * 0.944
+                remaining -= tier2
+            
+            # Siguientes 300 kWh (601-900) a $1.219 cada uno
+            if remaining > 0:
+                tier3 = min(remaining, 300)
+                cost += tier3 * 1.219
+                remaining -= tier3
+            
+            # Resto (901+) a $3.248 cada uno
+            if remaining > 0:
+                cost += remaining * 3.248
+            
+            return cost * 1.16  # Agregar 16% de IVA
+        
         with Session(engine) as db:
             readings = db.scalars(select(Reading).where(Reading.user_id == current_user.id).order_by(asc(Reading.created_at))).all()
             bills = db.scalars(select(Bill).where((Bill.user_id == current_user.id) | (Bill.user_id.is_(None))).order_by(asc(Bill.period_start))).all()
+        
         # Convert absolute meter readings to consumption deltas
         delta_labels: list[str] = []
         delta_values: list[float] = []
@@ -656,11 +747,13 @@ def create_app() -> Flask:
                 delta_labels.append(r.created_at.strftime("%Y-%m-%d %H:%M"))
                 delta_values.append(round(float(delta), 4))
                 prev = r
+        
         readings_data = {"labels": delta_labels, "kwh": delta_values}
         bills_data = {
             "labels": [f"{b.period_start.strftime('%Y-%m-%d')} a {b.period_end.strftime('%Y-%m-%d')}" for b in bills],
             "amounts": [b.amount_total for b in bills],
         }
+        
         # Compute average cost per kWh per bill period by summing deltas assigned to reading timestamps inside the period
         period_costs = []
         # Map reading timestamp -> delta
@@ -674,17 +767,40 @@ def create_app() -> Flask:
                 dt = readings[i].created_at
                 val = max(0.0, float(readings[i].kwh - readings[i-1].kwh))
                 ts_to_delta.append((dt, val))
+        
         for b in bills:
             pe_next = b.period_end + timedelta(days=1)
             total_kwh = sum(val for (dt, val) in ts_to_delta if (b.period_start <= dt < pe_next))
             avg_cost = (b.amount_total / total_kwh) if total_kwh > 0 else None
+            estimated_cfe_cost = calculate_tiered_cost(total_kwh) if total_kwh > 0 else None
+            
             period_costs.append({
                 "label": f"{b.period_start.strftime('%d %b %y')} - {b.period_end.strftime('%d %b %y')}",
                 "total_kwh": round(total_kwh, 4),
                 "amount": b.amount_total,
                 "avg_cost": avg_cost,
+                "estimated_cfe_cost": estimated_cfe_cost,
             })
-        return render_template("stats.html", readings_data=readings_data, bills_data=bills_data, period_costs=period_costs)
+        
+        # Calculate summary statistics
+        total_consumption = sum(row["total_kwh"] for row in period_costs)
+        total_spending = sum(row["amount"] for row in period_costs)
+        
+        # Calculate monthly averages (assuming periods are roughly monthly)
+        num_periods = len(period_costs) if period_costs else 1
+        avg_monthly_consumption = total_consumption / num_periods if num_periods > 0 else 0
+        avg_monthly_spending = total_spending / num_periods if num_periods > 0 else 0
+        avg_cost_per_kwh = total_spending / total_consumption if total_consumption > 0 else 0
+        
+        return render_template("stats.html", 
+                               readings_data=readings_data, 
+                               bills_data=bills_data, 
+                               period_costs=period_costs,
+                               total_consumption=total_consumption,
+                               total_spending=total_spending,
+                               avg_monthly_consumption=avg_monthly_consumption,
+                               avg_monthly_spending=avg_monthly_spending,
+                               avg_cost_per_kwh=avg_cost_per_kwh)
 
     return app
 

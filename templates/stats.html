@@ -1,10 +1,80 @@
 {% extends 'base.html' %}
 {% block content %}
-<h3 class="mb-3">Estadísticas</h3>
-<div class="row g-3">
+<h3 class="mb-3" style="color: var(--text);">Estadísticas</h3>
+
+<!-- Resumen General -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <i class="bi bi-lightning-charge text-warning mb-2" style="font-size: 2rem;"></i>
+        <h5 class="card-title mb-1" style="color: var(--text);">{{ readings_data.kwh|length or 0 }}</h5>
+        <p class="card-text small" style="color: var(--muted);">Lecturas</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <i class="bi bi-receipt text-primary mb-2" style="font-size: 2rem;"></i>
+        <h5 class="card-title mb-1" style="color: var(--text);">{{ bills_data.amounts|length or 0 }}</h5>
+        <p class="card-text small" style="color: var(--muted);">Recibos</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <i class="bi bi-graph-up text-success mb-2" style="font-size: 2rem;"></i>
+        <h5 class="card-title mb-1" style="color: var(--text);">{{ '%.0f'|format(total_consumption) if total_consumption else '0' }}</h5>
+        <p class="card-text small" style="color: var(--muted);">kWh Total</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <i class="bi bi-currency-dollar text-info mb-2" style="font-size: 2rem;"></i>
+        <h5 class="card-title mb-1" style="color: var(--text);">${{ '%.0f'|format(total_spending) if total_spending else '0' }}</h5>
+        <p class="card-text small" style="color: var(--muted);">Gasto Total</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Métricas Adicionales -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-md-4">
+    <div class="card">
+      <div class="card-body text-center">
+        <h6 class="mb-1" style="color: var(--muted);">Consumo Promedio Mensual</h6>
+        <h4 class="text-primary mb-0">{{ '%.0f'|format(avg_monthly_consumption) if avg_monthly_consumption else '0' }} kWh</h4>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card">
+      <div class="card-body text-center">
+        <h6 class="mb-1" style="color: var(--muted);">Gasto Promedio Mensual</h6>
+        <h4 class="text-success mb-0">${{ '%.0f'|format(avg_monthly_spending) if avg_monthly_spending else '0' }}</h4>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card">
+      <div class="card-body text-center">
+        <h6 class="mb-1" style="color: var(--muted);">Costo Promedio por kWh</h6>
+        <h4 class="text-warning mb-0">${{ '%.3f'|format(avg_cost_per_kwh) if avg_cost_per_kwh else '0.000' }}</h4>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Gráficos -->
+<div class="row g-3 mb-4">
   <div class="col-12 col-lg-6">
     <div class="card">
-      <div class="card-header d-flex align-items-center gap-2"><i class="bi bi-lightning-charge"></i> kWh registrados</div>
+      <div class="card-header d-flex align-items-center gap-2"><i class="bi bi-lightning-charge"></i> Consumo por Periodo (kWh)</div>
       <div class="card-body">
         <canvas id="readingsChart" height="140"></canvas>
       </div>
@@ -12,7 +82,7 @@
   </div>
   <div class="col-12 col-lg-6">
     <div class="card">
-      <div class="card-header d-flex align-items-center gap-2"><i class="bi bi-receipt"></i> Facturación (recibos)</div>
+      <div class="card-header d-flex align-items-center gap-2"><i class="bi bi-receipt"></i> Facturación por Periodo ($)</div>
       <div class="card-body">
         <canvas id="billsChart" height="140"></canvas>
       </div>
@@ -20,27 +90,51 @@
   </div>
 </div>
 
-<div class="card mt-3">
-  <div class="card-header d-flex align-items-center gap-2"><i class="bi bi-currency-dollar"></i> Costo promedio por kWh por periodo</div>
+<!-- Evolución del Costo por kWh -->
+<div class="card mb-4">
+  <div class="card-header d-flex align-items-center gap-2"><i class="bi bi-graph-up-arrow"></i> Evolución del Costo por kWh</div>
+  <div class="card-body">
+    <canvas id="costEvolutionChart" height="100"></canvas>
+  </div>
+</div>
+
+<!-- Tabla Detallada -->
+<div class="card">
+  <div class="card-header d-flex align-items-center gap-2"><i class="bi bi-table"></i> Detalle por Periodo</div>
   <div class="card-body table-responsive">
     <table class="table table-sm align-middle">
       <thead>
-        <tr>
-          <th>Periodo</th>
-          <th>kWh en periodo</th>
-          <th>Monto</th>
-          <th>Costo promedio por kWh</th>
+        <tr style="color: var(--text);">
+          <th style="color: var(--text);">Periodo</th>
+          <th style="color: var(--text);">kWh Consumidos</th>
+          <th style="color: var(--text);">Monto Pagado</th>
+          <th style="color: var(--text);">Costo por kWh</th>
+          <th style="color: var(--text);">vs Tarifa CFE*</th>
         </tr>
       </thead>
       <tbody>
         {% for row in period_costs %}
-        <tr>
-          <td data-label="Periodo">{{ row.label }}</td>
-          <td data-label="kWh en periodo">{{ '%.2f'|format(row.total_kwh) }}</td>
-          <td data-label="Monto">${{ '%.2f'|format(row.amount) }}</td>
-          <td data-label="Costo promedio por kWh">
+        <tr style="color: var(--text);">
+          <td data-label="Periodo" style="color: var(--text);">{{ row.label }}</td>
+          <td data-label="kWh Consumidos" style="color: var(--text);">{{ '%.1f'|format(row.total_kwh) }}</td>
+          <td data-label="Monto Pagado" style="color: var(--text);">${{ '%.2f'|format(row.amount) }}</td>
+          <td data-label="Costo por kWh" style="color: var(--text);">
             {% if row.avg_cost is not none %}
               ${{ '%.4f'|format(row.avg_cost) }}
+            {% else %}
+              N/D
+            {% endif %}
+          </td>
+          <td data-label="vs Tarifa CFE" style="color: var(--text);">
+            {% if row.estimated_cfe_cost and row.amount %}
+              {% set diff_pct = ((row.amount - row.estimated_cfe_cost) / row.estimated_cfe_cost * 100) %}
+              {% if diff_pct > 5 %}
+                <span class="badge bg-danger">+{{ '%.1f'|format(diff_pct) }}%</span>
+              {% elif diff_pct < -5 %}
+                <span class="badge bg-success">{{ '%.1f'|format(diff_pct) }}%</span>
+              {% else %}
+                <span class="badge bg-secondary">{{ '%.1f'|format(diff_pct) }}%</span>
+              {% endif %}
             {% else %}
               N/D
             {% endif %}
@@ -49,48 +143,113 @@
         {% endfor %}
       </tbody>
     </table>
+    <small style="color: var(--muted);">* Comparación con tarifa CFE escalonada estimada (incluye IVA)</small>
   </div>
 </div>
 
 <script type="application/json" id="readings-data">{{ readings_data | tojson | safe }}</script>
 <script type="application/json" id="bills-data">{{ bills_data | tojson | safe }}</script>
+<script type="application/json" id="period-costs-data">{{ period_costs | tojson | safe }}</script>
+{% endblock %}
+
+{% block extra_scripts %}
 <script>
-  const readingsData = JSON.parse(document.getElementById('readings-data').textContent);
-  const billsData = JSON.parse(document.getElementById('bills-data').textContent);
-  new Chart(document.getElementById('readingsChart'), {
-    type: 'line',
-    data: {
-      labels: readingsData.labels,
-      datasets: [{
-        label: 'kWh',
-        data: readingsData.kwh,
-        borderColor: 'rgb(54, 162, 235)',
-        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-        tension: 0.2,
-        fill: true,
-      }]
-    },
-    options: {
-      maintainAspectRatio: false,
-      scales: { x: { ticks: { color: '#9db0cf' } }, y: { ticks: { color: '#9db0cf' } } },
-      plugins: { legend: { labels: { color: '#e8eef9' } } }
+  // Esperar a que Chart.js esté disponible
+  document.addEventListener('DOMContentLoaded', function() {
+    if (typeof Chart === 'undefined') {
+      console.error('Chart.js no está disponible');
+      return;
     }
-  });
-  new Chart(document.getElementById('billsChart'), {
-    type: 'bar',
-    data: {
-      labels: billsData.labels,
-      datasets: [{
-        label: 'Monto $',
-        data: billsData.amounts,
-        backgroundColor: 'rgba(255, 99, 132, 0.5)'
-      }]
-    },
-    options: {
+
+    const readingsData = JSON.parse(document.getElementById('readings-data').textContent);
+    const billsData = JSON.parse(document.getElementById('bills-data').textContent);
+    const periodCosts = JSON.parse(document.getElementById('period-costs-data').textContent);
+
+    // Configuración común de charts
+    const chartOptions = {
       maintainAspectRatio: false,
-      scales: { x: { ticks: { autoSkip: true, maxRotation: 45, minRotation: 0, color: '#9db0cf' } }, y: { ticks: { color: '#9db0cf' } } },
-      plugins: { legend: { labels: { color: '#e8eef9' } } }
-    }
+      responsive: true,
+      scales: { 
+        x: { ticks: { color: '#9db0cf', maxRotation: 45, minRotation: 0 } }, 
+        y: { ticks: { color: '#9db0cf' } } 
+      },
+      plugins: { 
+        legend: { labels: { color: '#e8eef9' } },
+        tooltip: { 
+          backgroundColor: 'rgba(17, 24, 39, 0.9)',
+          titleColor: '#e8eef9',
+          bodyColor: '#e8eef9',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1
+        }
+      }
+    };
+
+    // Gráfico de consumo (cambiar a barras para mejor visualización por periodo)
+    new Chart(document.getElementById('readingsChart'), {
+      type: 'bar',
+      data: {
+        labels: periodCosts.map(p => p.label),
+        datasets: [{
+          label: 'kWh Consumidos',
+          data: periodCosts.map(p => p.total_kwh),
+          backgroundColor: 'rgba(54, 162, 235, 0.6)',
+          borderColor: 'rgb(54, 162, 235)',
+          borderWidth: 1,
+        }]
+      },
+      options: chartOptions
+    });
+
+    // Gráfico de facturación
+    new Chart(document.getElementById('billsChart'), {
+      type: 'bar',
+      data: {
+        labels: billsData.labels,
+        datasets: [{
+          label: 'Monto $',
+          data: billsData.amounts,
+          backgroundColor: 'rgba(255, 99, 132, 0.6)',
+          borderColor: 'rgb(255, 99, 132)',
+          borderWidth: 1,
+        }]
+      },
+      options: chartOptions
+    });
+
+    // Gráfico de evolución del costo por kWh
+    new Chart(document.getElementById('costEvolutionChart'), {
+      type: 'line',
+      data: {
+        labels: periodCosts.map(p => p.label),
+        datasets: [{
+          label: 'Costo por kWh ($)',
+          data: periodCosts.map(p => p.avg_cost),
+          borderColor: 'rgb(245, 183, 75)',
+          backgroundColor: 'rgba(245, 183, 75, 0.1)',
+          tension: 0.4,
+          fill: true,
+          pointBackgroundColor: 'rgb(245, 183, 75)',
+          pointBorderColor: 'rgb(245, 183, 75)',
+          pointBorderWidth: 2,
+        }]
+      },
+      options: {
+        ...chartOptions,
+        scales: {
+          ...chartOptions.scales,
+          y: {
+            ...chartOptions.scales.y,
+            ticks: {
+              ...chartOptions.scales.y.ticks,
+              callback: function(value) {
+                return '$' + value.toFixed(3);
+              }
+            }
+          }
+        }
+      }
+    });
   });
 </script>
 {% endblock %}
