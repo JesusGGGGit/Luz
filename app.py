@@ -8,6 +8,7 @@ from flask_login import (LoginManager, UserMixin, current_user, login_required,
 from sqlalchemy import create_engine, select, desc, asc, func
 from sqlalchemy.orm import Session, sessionmaker
 from werkzeug.security import check_password_hash, generate_password_hash
+from dotenv import load_dotenv
 
 from models import Base, User, Reading, Bill
 
@@ -25,6 +26,8 @@ def get_database_url() -> str:
 
 
 def create_app() -> Flask:
+    # Load variables from .env if present
+    load_dotenv()
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", os.urandom(24))
 
